@@ -7,6 +7,24 @@
 	import { candidates } from '@sudoku/stores/candidates';
 	import Cell from './Cell.svelte';
 
+	// 支持外部传入 game 实例（用于探索模式）
+	export let game = null;
+	export let boardKey = 0;   // 用于强制刷新
+
+	let usedGrid = [];
+	let usedInvalidCells = [];
+
+	$: {
+		if (game) {
+			usedGrid = game.getSudoku().getGrid();
+			const result = game.getSudoku().validate();
+			usedInvalidCells = result.errors.map(err => `${err.cell[1]},${err.cell[0]}`);
+		} else {
+			usedGrid = $userGrid;
+			usedInvalidCells = $invalidCells;
+		}
+	}
+
 	function isSelected(cursorStore, x, y) {
 		return cursorStore.x === x && cursorStore.y === y;
 	}
@@ -37,7 +55,7 @@
 
 		<div class="bg-white shadow-2xl rounded-xl overflow-hidden w-full h-full max-w-xl grid" class:bg-gray-200={$gamePaused}>
 
-			{#each $userGrid as row, y}
+			{#each usedGrid as row, y}
 				{#each row as value, x}
 					<Cell {value}
 					      cellY={y + 1}
@@ -45,10 +63,10 @@
 					      candidates={$candidates[x + ',' + y]}
 					      disabled={$gamePaused}
 					      selected={isSelected($cursor, x, y)}
-					      userNumber={$grid[y][x] === 0}
+					      userNumber={game ? !game.getSudoku().isFixed(y, x) : ($grid[y][x] === 0)}
 					      sameArea={$settings.highlightCells && !isSelected($cursor, x, y) && isSameArea($cursor, x, y)}
-					      sameNumber={$settings.highlightSame && value && !isSelected($cursor, x, y) && getValueAtCursor($userGrid, $cursor) === value}
-					      conflictingNumber={$settings.highlightConflicting && $grid[y][x] === 0 && $invalidCells.includes(x + ',' + y)} />
+					      sameNumber={$settings.highlightSame && value && !isSelected($cursor, x, y) && getValueAtCursor(usedGrid, $cursor) === value}
+					      conflictingNumber={$settings.highlightConflicting && (game ? !game.getSudoku().isFixed(y, x) : ($grid[y][x] === 0)) && usedInvalidCells.includes(x + ',' + y)} />
 				{/each}
 			{/each}
 
